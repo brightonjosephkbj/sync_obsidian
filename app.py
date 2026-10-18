@@ -103,6 +103,13 @@ def online():
     return jsonify({"ready": [dict(r) for r in rows]})
 
 
+@app.get("/status")
+def status():
+    with db() as c:
+        rows = c.execute("SELECT song_id,status,tries,file_url FROM songs").fetchall()
+    return jsonify({"downloader": DOWNLOADER_URL, "songs": [dict(r) for r in rows]})
+
+
 FILE_TTL = int(os.environ.get("SYNC_FILE_TTL_DAYS", "14")) * 86400
 
 
@@ -138,6 +145,7 @@ def worker():
         if not row:
             time.sleep(3)
             continue
+        print("[sync] fetching:", row["song_id"], "try", row["tries"] + 1, flush=True)
         try:
             file_url, status = download_song(dict(row)), "ready"
         except Exception as e:
@@ -151,6 +159,7 @@ def worker():
 
 init()
 threading.Thread(target=worker, daemon=True).start()
+print("[sync] worker started, downloader:", DOWNLOADER_URL, flush=True)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
