@@ -3,5 +3,6 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
+ENV PORT=7860
 EXPOSE 7860
-CMD ["gunicorn", "-b", "0.0.0.0:7860", "-w", "1", "--threads", "8", "--timeout", "120", "app:app"]
+CMD ["sh", "-c", "gunicorn -b 0.0.0.0:${PORT} -w 1 --threads 8 --timeout 120 app:app"]
