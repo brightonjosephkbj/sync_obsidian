@@ -1,3 +1,4 @@
+import hmac
 """b24-sync: tracks who needs which song, gets the mp3 fetched, and
 reports what's ready. Downloading itself is done by Api-cache."""
 import os, sqlite3, threading, time
@@ -49,7 +50,10 @@ def init():
 def guard():
     if request.path == "/ping":
         return None
-    if INTERNAL and request.headers.get("X-Internal-Auth", "") != INTERNAL:
+    if not INTERNAL:
+        return jsonify({"error": "server auth not configured"}), 503
+    sent = request.headers.get("X-Internal-Auth", "")
+    if not hmac.compare_digest(sent.encode(), INTERNAL.encode()):
         return jsonify({"error": "unauthorized"}), 401
 
 
