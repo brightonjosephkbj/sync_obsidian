@@ -7,7 +7,9 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 INTERNAL = os.environ.get("B24_INTERNAL_AUTH_TOKEN", "")
-DOWNLOADER_URL = os.environ.get("DOWNLOADER_URL", "https://nrighton233j-api-cache.hf.space")
+DOWNLOADER_URL = os.environ.get("DOWNLOADER_URL", "https://nrighton233j-api-cache.hf.space").strip().rstrip("/")
+if not DOWNLOADER_URL.startswith(("http://", "https://")):
+    DOWNLOADER_URL = "https://" + DOWNLOADER_URL
 def _pick_db_path():
     p = os.environ.get("SYNC_DB_PATH")
     if p:
