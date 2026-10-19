@@ -81,6 +81,7 @@ def req():
             q = s.get("query") or f"{s.get('artist', '')} {s.get('title', '')}".strip()
             c.execute("INSERT OR IGNORE INTO songs(song_id,title,artist,query,updated) VALUES(?,?,?,?,?)",
                       (sid, s.get("title"), s.get("artist"), q, now))
+            c.execute("UPDATE songs SET status='pending', tries=0, updated=? WHERE song_id=? AND status='failed'", (now, sid))
             c.execute("INSERT OR IGNORE INTO wants(user_id,song_id) VALUES(?,?)", (uid, sid))
             n += 1
     return jsonify({"queued": n})
@@ -143,7 +144,8 @@ def worker():
     while True:
         with db() as c:
             row = c.execute(
-                "SELECT * FROM songs WHERE status='pending' ORDER BY updated LIMIT 1").fetchone()
+                "SELECT * FROM songs WHERE status='pending' AND updated<=? ORDER BY updated LIMIT 1",
+                (time.time(),)).fetchone()
         if not row:
             time.sleep(3)
             continue
@@ -153,10 +155,10 @@ def worker():
         except Exception as e:
             print("download failed:", row["song_id"], e, flush=True)
             file_url = None
-            status = "failed" if row["tries"] + 1 >= 3 else "pending"
+            status = "failed" if row["tries"] + 1 >= 6 else "pending"
         with db() as c:
             c.execute("UPDATE songs SET status=?, file_url=?, tries=tries+1, updated=? WHERE song_id=?",
-                      (status, file_url, time.time(), row["song_id"]))
+                      (status, file_url, time.time() + (30 * (row["tries"] + 1) if status == "pending" else 0), row["song_id"]))
 
 
 init()
