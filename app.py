@@ -163,5 +163,29 @@ init()
 threading.Thread(target=worker, daemon=True).start()
 print("[sync] worker started, downloader:", DOWNLOADER_URL, flush=True)
 
+LAST_ERRORS = {}
+_orig_download_song = download_song
+
+
+def download_song(song):
+    try:
+        return _orig_download_song(song)
+    except Exception as e:
+        LAST_ERRORS[song["song_id"]] = f"{type(e).__name__}: {e}"[:600]
+        raise
+
+
+@app.get("/errors")
+def errors():
+    return jsonify(LAST_ERRORS)
+
+
+@app.post("/retry")
+def retry():
+    with db() as c:
+        n = c.execute("UPDATE songs SET status='pending', tries=0 WHERE status='failed'").rowcount
+    return jsonify({"requeued": n})
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 7860)))
